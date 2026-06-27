@@ -1,0 +1,15 @@
+.cfab { position: fixed; right: 22px; bottom: 22px; width: 60px; height: 60px; border-radius: 50%;
+  border: none; cursor: pointer; background: linear-gradient(135deg, #ff7a59, #ff4d6d);
+  box-shadow: 0 8px 24px rgba(255,77,109,.45); color: #fff; font-size: 24px; z-index: 9998; }
+.cstage { position: fixed; inset: 0; z-index: 9999; background: radial-gradient(circle at 50% 70%, #2a1a3d, #07070c);
+  display: flex; flex-direction: column; }
+.cstage .topbar { display:flex; justify-content: space-between; align-items:center; padding: 12px 18px; color:#fff; }
+.cstage .topbar button { background:#ffffff22; color:#fff; border:none; border-radius:50%; width:34px; height:34px; cursor:pointer; }
+.cstage .avatar { flex:1; display:flex; align-items:flex-end; justify-content:center; }
+.cstage .avatar > div { width:min(560px, 90vw); height:min(70vh, 640px); }
+.cstage .panel { padding: 12px 18px 20px; color:#eee; max-height: 30vh; overflow:auto; }
+.cstage .panel .line { margin: 4px 0; }
+.cstage .panel .line.me { color:#9b9bae; text-align:right; }
+.cstage .controls { display:flex; gap:10px; align-items:center; }
+.cstage .controls input { flex:1; background:#1a1a24; border:1px solid #333; color:#fff; padding:10px 12px; border-radius:8px; }
+.cstage .controls button { background:#ff4d6d; color:#fff; border:none; padding:10px 14px; border-radius:8px; cursor:pointer; }

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Home } from "./site/Home";
 import { Browse } from "./site/Browse";
 import { Show } from "./site/Show";
+import { CompanionWidget } from "./companion/CompanionWidget";
 import "./site/site.css";
 
 type View = { name: "home" } | { name: "browse" } | { name: "show"; id: string };
@@ -22,6 +23,7 @@ export function App() {
         {view.name === "browse" && <Browse onOpenShow={(id) => setView({ name: "show", id })} />}
         {view.name === "show" && <Show id={view.id} onBack={() => setView({ name: "home" })} />}
       </main>
+      <CompanionWidget apiBase={import.meta.env.VITE_API_BASE ?? ""} modelUrl="/models/sample.vrm" />
     </div>
   );
 }
