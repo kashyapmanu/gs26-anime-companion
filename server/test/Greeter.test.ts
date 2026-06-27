@@ -20,6 +20,7 @@ describe("Greeter", () => {
     const g = new Greeter({ persona: kiraPersona, data, llm: llmStub("Yo! New Jujutsu Kaisen just dropped!") as any, tts: ttsStub() as any });
     const r = await g.generateGreeting();
     expect(r.text).toContain("Jujutsu Kaisen");
+    expect(r.text).not.toMatch(/episode 35/i);
     expect(r.audioBase64).toBeTruthy();
   });
 
