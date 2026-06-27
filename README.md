@@ -12,6 +12,14 @@ new-episode greeting on open.
 
 ## Run (demo)
 
+The easiest way:
+
+```bash
+./start.sh
+```
+
+Or run the two services separately:
+
 - Backend: `npm run dev:server` (default `:8787`)
 - Frontend: `npm run dev:web` (Vite proxies `/session` to the backend)
 
