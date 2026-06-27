@@ -1,0 +1,13 @@
+{
+  "name": "gs26-anime-companion",
+  "private": true,
+  "workspaces": ["shared", "server", "web"],
+  "scripts": {
+    "dev:server": "npm -w server run dev",
+    "dev:web": "npm -w web run dev",
+    "build": "npm -w shared build && npm -w server build && npm -w web build",
+    "test": "npm -w shared test && npm -w server test && npm -w web test",
+    "typecheck": "npm -w shared run typecheck && npm -w server run typecheck && npm -w web run typecheck"
+  },
+  "engines": { "node": ">=20" }
+}
