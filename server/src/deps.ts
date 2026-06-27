@@ -20,9 +20,17 @@ export interface Deps {
 }
 
 export function buildDeps(env: Env = loadEnv()): Deps {
-  const sdk = new OpenAI({ baseURL: env.LLM_BASE_URL, apiKey: env.LLM_API_KEY });
-  const llm = new LLMProxy({ client: sdk as any, model: env.LLM_MODEL });
-  const tts = new TTSProxy(openAITTSProvider(sdk as any, env.TTS_MODEL, env.TTS_VOICE));
+  const meshClient = new OpenAI({ baseURL: env.MESH_BASE_URL, apiKey: env.MESH_API_KEY });
+  const openrouterClient = new OpenAI({ baseURL: env.OPENROUTER_BASE_URL, apiKey: env.OPENROUTER_API_KEY });
+
+  const llm = new LLMProxy({
+    providers: [
+      { name: "mesh", client: meshClient as any, model: env.MESH_LLM_MODEL },
+      { name: "openrouter", client: openrouterClient as any, model: env.OPENROUTER_LLM_MODEL },
+    ],
+  });
+
+  const tts = new TTSProxy(openAITTSProvider(meshClient as any, env.MESH_TTS_MODEL, env.MESH_TTS_VOICE));
   const data = new MockDataService();
   const greeter = new Greeter({ persona: kiraPersona, data, llm, tts });
   return { persona: kiraPersona, data, llm, tts, greeter, buildSystemPrompt, createSessionStore };

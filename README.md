@@ -7,7 +7,7 @@ new-episode greeting on open.
 ## Setup
 
 1. `npm install`
-2. `cp server/.env.example server/.env` and fill in `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL`, and the `TTS_*` variables.
+2. `cp server/.env.example server/.env` and fill in `MESH_API_KEY`, `MESH_LLM_MODEL`, `MESH_TTS_*`, `OPENROUTER_API_KEY`, and `OPENROUTER_LLM_MODEL`.
 3. A sample VRM model is already at `web/public/models/sample.vrm`. Replace it if you want a different avatar and update `web/public/models/CREDITS.md`.
 
 ## Run (demo)
