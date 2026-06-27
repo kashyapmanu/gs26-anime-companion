@@ -23,6 +23,7 @@ export class ConversationClient {
     const res = await this.fetchImpl(`${this.opts.base}/session/open`, {
       method: "POST",
       headers: { "content-type": "application/json" },
+      body: JSON.stringify({}),
     });
     if (!res.ok) throw new Error(`openSession failed: ${res.status}`);
     return (await res.json()) as OpenSessionResponse;

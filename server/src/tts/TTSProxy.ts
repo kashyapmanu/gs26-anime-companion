@@ -14,7 +14,7 @@ export interface OpenAIAudioClient {
 export function openAITTSProvider(sdk: OpenAIAudioClient, model: string, voice: string): TTSProvider {
   return {
     async synthesize(text) {
-      const res = await sdk.audio.speech.create({ model, voice, input: text, response_format: "mp3" });
+      const res = await sdk.audio.speech.create({ model, voice, input: text, response_format: "mp3_44100_128", stream: false });
       const buf = Buffer.from(await res.arrayBuffer());
       return { audioBase64: buf.toString("base64"), mime: "audio/mpeg" };
     },
