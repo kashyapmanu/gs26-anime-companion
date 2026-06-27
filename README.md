@@ -1,33 +1,31 @@
 # CrunchyFake Anime Companion
 
-A virtual **3D anime companion** embedded in a Crunchyroll-style demo website ("CrunchyFake"). The companion is a voice-driven AI buddy (speech-in / speech-out, with lip-sync) that is aware of the user's watch history and proactively reminds them when a new episode drops.
+A 3D VRM anime companion embedded in a Crunchyroll-style demo site. Full voice
+(speech-in / speech-out + lip-sync), watch-history-aware chat, and a proactive
+new-episode greeting on open.
 
-Developed as a hackathon submission (Sony/Crunchyroll), this project is built using a single JS/TS stack with a Vite + React frontend and a Fastify backend.
+## Setup
 
-## 🚀 Key Features
+1. `npm install`
+2. `cp server/.env.example server/.env` and fill in `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL`, and the `TTS_*` variables.
+3. A sample VRM model is already at `web/public/models/sample.vrm`. Replace it if you want a different avatar and update `web/public/models/CREDITS.md`.
 
-* **3D VRM Avatar Stage**: Renders true 3D anime avatars in-browser using `@pixiv/three-vrm`.
-* **Full Voice Conversation**: Speech-to-text (STT) via the browser Web Speech API and Text-to-Speech (TTS) via a cloud provider.
-* **Lip-Sync Integration**: The avatar's mouth movements are dynamically driven by the incoming TTS audio.
-* **Watch-History Aware**: The AI's prompt is initialized with the user's mock watch history.
-* **Proactive Greeting**: Automatically greets the user with personalized comments and episode drop reminders when the companion widget is opened.
-* **Streaming & Low-Latency**: Sentences are chunked and streamed to TTS immediately to reduce latency.
+## Run (demo)
 
-## 🏗️ Architecture
+- Backend: `npm run dev:server` (default `:8787`)
+- Frontend: `npm run dev:web` (Vite proxies `/session` to the backend)
 
-```
-Browser (localhost)              Node Proxy Backend              Cloud Providers
------------------                ------------------              ---------------
-CrunchyFake Site Shell           PersonaPromptBuilder            OpenAI-compatible LLM
-  |                              LLMProxy (streaming)            TTS Provider
-CompanionWidget (embed)          TTSProxy                        (STT is in-browser)
-  |- VRMStage (three-vrm)        MockDataService
-  |- VoiceController (STT/play)  Greeter
-  |- ConversationClient          SessionRouter (HTTP/WS)
-```
+Open the Vite URL in a Chromium-based browser (Web Speech STT is required). Click the
+floating bubble in the bottom-right to open the companion — it greets you first and
+flags the newest episode from your watch history.
 
-## 📂 Project Structure
+## Tests / types
 
-* `docs/`: Specs and plans.
-  * [Design Spec](docs/superpowers/specs/2026-06-27-anime-companion-design.md)
-  * [Implementation Plan](docs/superpowers/plans/2026-06-27-anime-companion.md)
+- `npm test`
+- `npm run typecheck`
+
+## Architecture
+
+- `shared/` — TypeScript types used by both frontend and backend.
+- `server/` — Fastify backend: mock catalog/watch history, provider-agnostic LLM/TTS adapters, SSE streaming conversation.
+- `web/` — Vite + React frontend: dummy Crunchyroll-style site, three-vrm avatar stage, Web Speech STT, Web Audio lip-sync.
