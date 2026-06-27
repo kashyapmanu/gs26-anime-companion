@@ -5,11 +5,11 @@ const schema = z.object({
   MESH_BASE_URL: z.string().url().default("https://api.meshapi.ai"),
   MESH_API_KEY: z.string().min(1),
   MESH_LLM_MODEL: z.string().min(1),
-  MESH_TTS_MODEL: z.string().min(1),
-  MESH_TTS_VOICE: z.string().min(1),
+  MESH_TTS_MODEL: z.string().min(1).default("sarvam/bulbul:v3"),
+  MESH_TTS_VOICE: z.string().min(1).default("anushka"),
   OPENROUTER_BASE_URL: z.string().url().default("https://openrouter.ai/api/v1"),
-  OPENROUTER_API_KEY: z.string().min(1),
-  OPENROUTER_LLM_MODEL: z.string().min(1),
+  OPENROUTER_API_KEY: z.string().optional(),
+  OPENROUTER_LLM_MODEL: z.string().optional(),
 });
 
 export type Env = z.infer<typeof schema>;
