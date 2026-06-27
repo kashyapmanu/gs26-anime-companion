@@ -43,12 +43,26 @@ export const VRMStage = forwardRef<VRMStageHandle, { modelUrl: string }>(functio
 
     const loader = new GLTFLoader();
     loader.register((parser) => new VRMLoaderPlugin(parser));
-    loader.load(modelUrl, (gltf) => {
-      const vrm = gltf.userData.vrm as VRM;
-      vrmRef.current = vrm;
-      scene.add(vrm.scene);
-      vrm.scene.rotation.y = Math.PI;
-    });
+    loader.load(
+      modelUrl,
+      (gltf) => {
+        const vrm = gltf.userData.vrm as VRM;
+        vrmRef.current = vrm;
+        scene.add(vrm.scene);
+
+        // Frame the model: place the camera so the whole avatar fits in view.
+        const box = new THREE.Box3().setFromObject(vrm.scene);
+        const center = box.getCenter(new THREE.Vector3());
+        const size = box.getSize(new THREE.Vector3());
+        const maxDim = Math.max(size.x, size.y, size.z);
+        const fovRad = camera.fov * (Math.PI / 180);
+        const distance = (maxDim / (2 * Math.tan(fovRad / 2))) * 1.4;
+        camera.position.set(center.x, center.y + size.y * 0.15, center.z + distance);
+        camera.lookAt(center);
+      },
+      undefined,
+      (err) => { console.error("VRM load failed:", err); },
+    );
 
     speakRef.current = async (audioBase64: string, mime: string) => {
       await voiceRef.current.play(audioBase64, mime, (w) => { targetViseme.current = w; });
@@ -79,7 +93,12 @@ export const VRMStage = forwardRef<VRMStageHandle, { modelUrl: string }>(functio
     };
     window.addEventListener("resize", onResize);
 
-    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", onResize); renderer.dispose(); };
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", onResize);
+      renderer.dispose();
+      try { mount.removeChild(renderer.domElement); } catch { /* already removed */ }
+    };
   }, [modelUrl]);
 
   return <div ref={mountRef} style={{ width: "100%", height: "100%" }} />;
