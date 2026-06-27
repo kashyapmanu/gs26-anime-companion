@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { pathToFileURL } from "node:url";
 import Fastify, { type FastifyInstance } from "fastify";
 import { loadEnv } from "./env.js";

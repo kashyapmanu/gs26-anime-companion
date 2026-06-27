@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@crunchyfake/shared": "*",
+    "dotenv": "^17.4.2",
     "fastify": "^4.28.1",
     "openai": "^4.60.0",
     "zod": "^3.23.8"
