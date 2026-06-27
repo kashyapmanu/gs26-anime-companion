@@ -1,0 +1,17 @@
+.site { font-family: system-ui, sans-serif; background:#0b0b10; color:#eee; min-height:100vh; }
+.site header { display:flex; align-items:center; gap:16px; padding:14px 24px; border-bottom:1px solid #222; }
+.site header .brand { color:#ff7a59; font-weight:800; font-size:18px; letter-spacing:.03em; }
+.site header nav a { color:#bbb; margin-right:14px; text-decoration:none; cursor:pointer; }
+.site header nav a:hover { color:#fff; }
+.site main { padding:24px; }
+.hero { height:220px; border-radius:14px; background:linear-gradient(90deg,#3a1f4d,#1d1130); display:flex; align-items:center; padding-left:32px; margin-bottom:24px; }
+.hero h1 { font-size:32px; margin:0; }
+.row h2 { font-size:16px; color:#ddd; margin:18px 0 10px; }
+.grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:14px; }
+.card { background:#14141c; border:1px solid #23232f; border-radius:10px; overflow:hidden; cursor:pointer; }
+.card .poster { height:200px; }
+.card .meta { padding:8px 10px; }
+.card .meta b { font-size:13px; }
+.card .meta p { font-size:11px; color:#999; margin:4px 0 0; }
+.show-detail .poster { height:280px; border-radius:12px; margin-bottom:16px; }
+.show-detail h1 { margin:0 0 8px; }
