@@ -1,4 +1,6 @@
+import { pathToFileURL } from "node:url";
 import Fastify, { type FastifyInstance } from "fastify";
+import { loadEnv } from "./env.js";
 
 export function buildServer(): FastifyInstance {
   const app = Fastify({ logger: true });
@@ -7,13 +9,12 @@ export function buildServer(): FastifyInstance {
 }
 
 async function start() {
-  const { loadEnv } = await import("./env.js");
   const env = loadEnv();
   const app = buildServer();
   await app.listen({ port: env.PORT, host: "0.0.0.0" });
 }
 
-const isMain = process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/\\/g, "/"));
+const isMain = process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url;
 if (isMain) {
   start().catch((err) => {
     console.error(err);
