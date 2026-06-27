@@ -44,4 +44,84 @@ describe("ConversationClient", () => {
     expect(audio).toEqual(["QkFB"]);
     expect(done).toBe(true);
   });
+
+  it("send handles split chunks and remainder", async () => {
+    const chunks = [
+      "event: sentence\ndata: {\"text\":\"",
+      "hello\"}\n\nevent: audio\ndata: {\"text\":\"hello\",\"audioBase64\":\"",
+      "QkFB\",\"mime\":\"audio/mpeg\"}\n\nevent: done\ndata: {}\n\n",
+    ];
+    const stream = new ReadableStream({
+      start(ctl) {
+        for (const c of chunks) ctl.enqueue(textEncoder(c));
+        ctl.close();
+      },
+    });
+    const fetchMock = vi.fn(async () => ({ ok: true, status: 200, body: stream })) as any;
+    const c = new ConversationClient({ base: "", fetchImpl: fetchMock });
+
+    const sentence: string[] = [];
+    let done = false;
+    await new Promise<void>((resolve) => {
+      c.send("s1", "hello", {
+        onSentence: (t) => sentence.push(t),
+        onAudio: () => {},
+        onDone: () => { done = true; resolve(); },
+        onError: () => resolve(),
+      });
+    });
+    expect(sentence).toEqual(["hello"]);
+    expect(done).toBe(true);
+  });
+
+  it("send calls onError for non-ok response", async () => {
+    const fetchMock = vi.fn(async () => ({ ok: false, status: 500, body: { cancel: vi.fn() } })) as any;
+    const c = new ConversationClient({ base: "", fetchImpl: fetchMock });
+    const error: string[] = [];
+    await new Promise<void>((resolve) => {
+      c.send("s1", "hello", {
+        onSentence: () => {},
+        onAudio: () => {},
+        onDone: () => {},
+        onError: (m) => { error.push(m); resolve(); },
+      });
+    });
+    expect(error).toEqual(["send failed: 500"]);
+  });
+
+  it("send calls onError for SSE error event", async () => {
+    const body = "event: error\ndata: {\"message\":\"bad\"}\n\n";
+    const stream = new ReadableStream({
+      start(ctl) { ctl.enqueue(textEncoder(body)); ctl.close(); },
+    });
+    const fetchMock = vi.fn(async () => ({ ok: true, status: 200, body: stream })) as any;
+    const c = new ConversationClient({ base: "", fetchImpl: fetchMock });
+    const error: string[] = [];
+    let done = false;
+    await new Promise<void>((resolve) => {
+      c.send("s1", "hello", {
+        onSentence: () => {},
+        onAudio: () => {},
+        onDone: () => { done = true; resolve(); },
+        onError: (m) => { error.push(m); resolve(); },
+      });
+    });
+    expect(error).toEqual(["bad"]);
+    expect(done).toBe(false);
+  });
+
+  it("send calls onError for network error", async () => {
+    const fetchMock = vi.fn(async () => { throw new Error("offline"); }) as any;
+    const c = new ConversationClient({ base: "", fetchImpl: fetchMock });
+    const error: string[] = [];
+    await new Promise<void>((resolve) => {
+      c.send("s1", "hello", {
+        onSentence: () => {},
+        onAudio: () => {},
+        onDone: () => {},
+        onError: (m) => { error.push(m); resolve(); },
+      });
+    });
+    expect(error).toEqual(["offline"]);
+  });
 });

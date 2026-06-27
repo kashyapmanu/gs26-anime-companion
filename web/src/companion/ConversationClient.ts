@@ -38,7 +38,12 @@ export class ConversationClient {
           body: JSON.stringify({ text }),
           signal: controller.signal,
         });
-        if (!res.ok || !res.body) { h.onError(`send failed: ${res.status}`); return; }
+        if (!res.ok) {
+          await Promise.resolve(res.body?.cancel()).catch(() => {});
+          h.onError(`send failed: ${res.status}`);
+          return;
+        }
+        if (!res.body) { h.onError("send failed: no body"); return; }
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
@@ -53,7 +58,8 @@ export class ConversationClient {
         const tail = parseSseStream(buffer + decoder.decode());
         for (const e of tail.events) this.dispatch(e.event, e.data as StreamEvent, h);
       } catch (err) {
-        if (!controller.signal.aborted) h.onError(err instanceof Error ? err.message : "network error");
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        h.onError(err instanceof Error ? err.message : "network error");
       }
     })();
     return { abort: () => controller.abort() };
