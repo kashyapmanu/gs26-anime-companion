@@ -11,13 +11,8 @@ fi
 
 npm install
 
-pick_port() {
-  node -e 'const s=require("net").createServer();s.listen(0,()=>{process.stdout.write(String(s.address().port));s.close()})'
-}
-
-BACKEND_PORT=$(pick_port)
-WEB_PORT=$(pick_port)
-while [ "$BACKEND_PORT" = "$WEB_PORT" ]; do WEB_PORT=$(pick_port); done
+BACKEND_PORT=3005
+WEB_PORT=3006
 
 export PORT="$BACKEND_PORT"
 export BACKEND_PORT
