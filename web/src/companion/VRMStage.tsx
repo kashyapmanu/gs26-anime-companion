@@ -8,7 +8,6 @@ import {
   computeBodyPose,
   initialBodyAnimationState,
   defaultBodyAnimationConfig,
-  type BodyAnimationState,
 } from "./bodyAnimation";
 import { applyBodyPose } from "./VRMHumanoidDriver";
 
@@ -29,9 +28,7 @@ export const VRMStage = forwardRef<
   const speakRef = useRef<VRMStageHandle["speak"]>(() => Promise.resolve());
   const stopRef = useRef<VRMStageHandle["stopSpeaking"]>(() => {});
   const enableBodyAnimationRef = useRef<boolean>(enableBodyAnimation);
-  useEffect(() => {
-    enableBodyAnimationRef.current = enableBodyAnimation;
-  }, [enableBodyAnimation]);
+  enableBodyAnimationRef.current = enableBodyAnimation;
 
   useImperativeHandle(_ref as any, () => ({
     load: async () => {},
@@ -88,7 +85,6 @@ export const VRMStage = forwardRef<
 
     let raf = 0;
     const render = (time: number) => {
-      raf = requestAnimationFrame(render);
       const deltaSeconds = lastRafTime === undefined ? 1 / 60 : (time - lastRafTime) / 1000;
       lastRafTime = time;
       const delta = Math.min(1, deltaSeconds);
@@ -122,6 +118,7 @@ export const VRMStage = forwardRef<
 
       if (vrmRef.current) vrmRef.current.update(delta);
       renderer.render(scene, camera);
+      raf = requestAnimationFrame(render);
     };
     raf = requestAnimationFrame(render);
 
