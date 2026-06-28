@@ -92,7 +92,7 @@ describe("VRMStage body animation integration", () => {
     // Simulate VRM load.
     loadCallback?.({
       userData: {
-        vrm: new (await import("@pixiv/three-vrm")).VRM(),
+        vrm: new (await import("@pixiv/three-vrm")).VRM({} as any),
       },
     });
 
@@ -112,7 +112,7 @@ describe("VRMStage body animation integration", () => {
 
     loadCallback?.({
       userData: {
-        vrm: new (await import("@pixiv/three-vrm")).VRM(),
+        vrm: new (await import("@pixiv/three-vrm")).VRM({} as any),
       },
     });
 
