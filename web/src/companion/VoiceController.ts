@@ -19,6 +19,7 @@ export class VoiceController {
   private currentSource: AudioBufferSourceNode | null = null;
   private queue: Array<{ audioBase64: string; mime: string; onViseme: (w: VisemeWeights) => void }> = [];
   private playing = false;
+  private currentAmplitude = 0;
 
   static isSTTSupported(): boolean {
     return typeof window !== "undefined" &&
@@ -43,6 +44,10 @@ export class VoiceController {
   stopListening(): void {
     this.recognition?.stop();
     this.recognition = null;
+  }
+
+  getCurrentAmplitude(): number {
+    return this.currentAmplitude;
   }
 
   /** Queue an audio chunk; chunks play sequentially so sentences never overlap or get cut off. */
@@ -85,6 +90,7 @@ export class VoiceController {
       let sum = 0;
       for (let i = 0; i < data.length; i++) { const v = (data[i] - 128) / 128; sum += v * v; }
       const rms = Math.sqrt(sum / data.length);
+      this.currentAmplitude = rms;
       onViseme(amplitudeToViseme(rms));
       this.raf = requestAnimationFrame(tick);
     };
@@ -93,6 +99,7 @@ export class VoiceController {
       source.onended = () => {
         cancelAnimationFrame(this.raf);
         this.raf = 0;
+        this.currentAmplitude = 0;
         onViseme(amplitudeToViseme(0));
         resolve();
       };
@@ -104,6 +111,7 @@ export class VoiceController {
     this.queue = [];
     cancelAnimationFrame(this.raf);
     this.raf = 0;
+    this.currentAmplitude = 0;
     try { this.currentSource?.stop(); } catch { /* already stopped */ }
     this.currentSource = null;
   }
