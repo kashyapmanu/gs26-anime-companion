@@ -3,6 +3,7 @@ import type { BodyPose, Rotation3D } from "./bodyAnimation";
 
 type DrivenBoneName = "head" | "neck" | "leftShoulder" | "rightShoulder";
 
+// chest is handled separately with an upperChest -> chest fallback.
 const boneMap: Record<DrivenBoneName, VRMHumanBoneName> = {
   head: "head",
   neck: "neck",
@@ -48,24 +49,27 @@ export function applyBodyPose(vrm: VRM, pose: BodyPose): void {
   if (!expr) return;
 
   // Blink: prefer unified "blink"; fall back to split "blinkLeft"/"blinkRight".
-  const hasBlink = expr.getExpressionTrackName("blink");
-  const hasBlinkLeft = expr.getExpressionTrackName("blinkLeft");
-  const hasBlinkRight = expr.getExpressionTrackName("blinkRight");
-  const blinkWeight = pose.blink > 0 ? pose.blink : 0;
+  const hasBlink = expr.getExpressionTrackName("blink") !== null;
+  const hasBlinkLeft = expr.getExpressionTrackName("blinkLeft") !== null;
+  const hasBlinkRight = expr.getExpressionTrackName("blinkRight") !== null;
+  const blinkWeight = clamp01(pose.blink);
 
   if (hasBlink) {
     expr.setValue("blink", blinkWeight);
-  } else if (hasBlinkLeft && hasBlinkRight) {
+  }
+  if (!hasBlink && hasBlinkLeft) {
     expr.setValue("blinkLeft", blinkWeight);
+  }
+  if (!hasBlink && hasBlinkRight) {
     expr.setValue("blinkRight", blinkWeight);
   }
 
   // Brow: prefer "brow", then "browInnerUp", "relaxed", "happy".
   const browName =
-    expr.getExpressionTrackName("brow") ??
-    expr.getExpressionTrackName("browInnerUp") ??
-    expr.getExpressionTrackName("relaxed") ??
-    expr.getExpressionTrackName("happy");
+    (expr.getExpressionTrackName("brow") ? "brow" : null) ??
+    (expr.getExpressionTrackName("browInnerUp") ? "browInnerUp" : null) ??
+    (expr.getExpressionTrackName("relaxed") ? "relaxed" : null) ??
+    (expr.getExpressionTrackName("happy") ? "happy" : null);
   if (browName) {
     expr.setValue(browName, clamp01(pose.brow));
   }

@@ -22,7 +22,7 @@ function makeMockVRM(boneNames: string[], expressionNames: string[] = []) {
     expressionManager: {
       setValue,
       getExpressionTrackName: vi.fn((name: string) =>
-        expressionNames.includes(name) ? name : null
+        expressionNames.includes(name) ? `${name}.weight` : null
       ),
     },
     expressions,
@@ -90,6 +90,22 @@ describe("applyBodyPose", () => {
     applyBodyPose(vrm, pose);
     expect(vrm.expressions["blinkLeft"]).toBe(0.75);
     expect(vrm.expressions["blinkRight"]).toBe(0.75);
+  });
+
+  it("drives a single available blink side", () => {
+    const vrm = makeMockVRM([], ["blinkLeft"]);
+    const pose: BodyPose = {
+      head: { x: 0, y: 0, z: 0 },
+      neck: { x: 0, y: 0, z: 0 },
+      chest: { x: 0, y: 0, z: 0 },
+      leftShoulder: { x: 0, y: 0, z: 0 },
+      rightShoulder: { x: 0, y: 0, z: 0 },
+      blink: 0.5,
+      brow: 0,
+    };
+    applyBodyPose(vrm, pose);
+    expect(vrm.expressions["blinkLeft"]).toBe(0.5);
+    expect(vrm.expressions["blinkRight"]).toBeUndefined();
   });
 
   it("prefers unified blink over split blink expressions", () => {
