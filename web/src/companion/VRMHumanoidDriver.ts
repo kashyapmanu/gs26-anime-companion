@@ -51,10 +51,10 @@ export function applyBodyPose(vrm: VRM, pose: BodyPose): void {
 
   // Brow: prefer "brow", then "browInnerUp", "relaxed", "happy".
   const browName =
-    (expr.getExpression("brow") ? "brow" : null) ??
-    (expr.getExpression("browInnerUp") ? "browInnerUp" : null) ??
-    (expr.getExpression("relaxed") ? "relaxed" : null) ??
-    (expr.getExpression("happy") ? "happy" : null);
+    (expr.getExpression("brow") !== null ? "brow" : null) ??
+    (expr.getExpression("browInnerUp") !== null ? "browInnerUp" : null) ??
+    (expr.getExpression("relaxed") !== null ? "relaxed" : null) ??
+    (expr.getExpression("happy") !== null ? "happy" : null);
   if (browName) {
     expr.setValue(browName, clamp01(pose.brow));
   }

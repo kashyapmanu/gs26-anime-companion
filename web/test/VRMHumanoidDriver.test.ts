@@ -15,23 +15,15 @@ function makeMockVRM(boneNames: string[], expressionNames: string[] = []) {
   const setValue = vi.fn((name: string, value: number) => {
     expressions[name] = value;
   });
-  const expressionMap: Record<string, unknown> = {};
-  for (const name of expressionNames) {
-    expressionMap[name] = {};
-  }
   return {
     humanoid: {
       getNormalizedBoneNode: vi.fn((name: string) => bones[name] ?? null),
     },
     expressionManager: {
       setValue,
-      getExpressionTrackName: vi.fn((name: string) =>
-        expressionNames.includes(name) ? `${name}.weight` : null
-      ),
       getExpression: vi.fn((name: string) =>
         expressionNames.includes(name) ? ({} as any) : null
       ),
-      expressionMap,
     },
     expressions,
     bones,
@@ -162,6 +154,22 @@ describe("applyBodyPose", () => {
     };
     applyBodyPose(vrm, pose);
     expect(vrm.expressions["blink"]).toBe(0);
+  });
+
+  it("releases split blink expressions when pose.blink is 0", () => {
+    const vrm = makeMockVRM([], ["blinkLeft", "blinkRight"]);
+    const pose: BodyPose = {
+      head: { x: 0, y: 0, z: 0 },
+      neck: { x: 0, y: 0, z: 0 },
+      chest: { x: 0, y: 0, z: 0 },
+      leftShoulder: { x: 0, y: 0, z: 0 },
+      rightShoulder: { x: 0, y: 0, z: 0 },
+      blink: 0,
+      brow: 0,
+    };
+    applyBodyPose(vrm, pose);
+    expect(vrm.expressions["blinkLeft"]).toBe(0);
+    expect(vrm.expressions["blinkRight"]).toBe(0);
   });
 
   it("releases brow expression when pose.brow is 0", () => {
