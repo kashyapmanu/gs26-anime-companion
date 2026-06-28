@@ -30,6 +30,12 @@ describe("computeBodyPose", () => {
     expect(Math.abs(pose.head.y)).toBeLessThanOrEqual(cfg.safety.maxHeadYaw);
     expect(Math.abs(pose.head.z)).toBeLessThanOrEqual(cfg.safety.maxHeadRoll);
     expect(Math.abs(pose.chest.x)).toBeLessThanOrEqual(cfg.safety.maxChest);
+    expect(Math.abs(pose.leftShoulder.z)).toBeLessThanOrEqual(
+      cfg.safety.maxShoulderRoll
+    );
+    expect(Math.abs(pose.rightShoulder.z)).toBeLessThanOrEqual(
+      cfg.safety.maxShoulderRoll
+    );
   });
 
   it("triggers a blink within a reasonable time window", () => {
@@ -97,5 +103,48 @@ describe("computeBodyPose", () => {
     expect(s.lastSmoothedAmplitude).toBe(0);
     expect(s.emphasisValue).toBe(0);
     expect(s.inBlinkUntil).toBe(0);
+  });
+
+  it("blink returns to 0 after the blink duration", () => {
+    let state = zeroState;
+    const cfg = defaultBodyAnimationConfig;
+    // Advance to just before the first scheduled blink.
+    let t = 0;
+    while (state.nextBlinkTime - t > 0.05) {
+      const r = computeBodyPose(t, 0, state, cfg);
+      state = r.state;
+      t += 0.05;
+    }
+    const blinkTime = state.nextBlinkTime;
+    const during = computeBodyPose(blinkTime, 0, state, cfg);
+    expect(during.pose.blink).toBe(1);
+    const after = computeBodyPose(
+      blinkTime + cfg.idle.blinkDuration + 0.01,
+      0,
+      during.state,
+      cfg
+    );
+    expect(after.pose.blink).toBe(0);
+  });
+
+  it("clamps amplitude above 1", () => {
+    const { pose } = computeBodyPose(
+      0,
+      5,
+      zeroState,
+      defaultBodyAnimationConfig
+    );
+    const cfg = defaultBodyAnimationConfig;
+    expect(Math.abs(pose.head.x)).toBeLessThanOrEqual(cfg.safety.maxHeadPitch);
+  });
+
+  it("handles negative amplitude gracefully", () => {
+    const { pose } = computeBodyPose(
+      0,
+      -1,
+      zeroState,
+      defaultBodyAnimationConfig
+    );
+    expect(pose.brow).toBe(0);
   });
 });

@@ -45,6 +45,8 @@ export interface BodyAnimationConfig {
     emphasisDecay: number;
     emphasisTilt: number;
     sentenceStartBoost: number;
+    sentenceStartLowThreshold: number;
+    sentenceStartHighThreshold: number;
   };
   safety: {
     maxHeadPitch: number;
@@ -52,7 +54,7 @@ export interface BodyAnimationConfig {
     maxHeadRoll: number;
     maxNeck: number;
     maxChest: number;
-    maxShoulderY: number;
+    maxShoulderRoll: number;
   };
 }
 
@@ -80,6 +82,8 @@ export const defaultBodyAnimationConfig: BodyAnimationConfig = {
     emphasisDecay: 2.5,
     emphasisTilt: 6 * DEG2RAD,
     sentenceStartBoost: 2 * DEG2RAD,
+    sentenceStartLowThreshold: 0.05,
+    sentenceStartHighThreshold: 0.1,
   },
   safety: {
     maxHeadPitch: 15 * DEG2RAD,
@@ -87,7 +91,7 @@ export const defaultBodyAnimationConfig: BodyAnimationConfig = {
     maxHeadRoll: 8 * DEG2RAD,
     maxNeck: 5 * DEG2RAD,
     maxChest: 4 * DEG2RAD,
-    maxShoulderY: 0.015,
+    maxShoulderRoll: 0.015,
   },
 };
 
@@ -119,7 +123,8 @@ export function computeBodyPose(
   time: number,
   amplitude: number,
   state: BodyAnimationState,
-  config: BodyAnimationConfig = defaultBodyAnimationConfig
+  config: BodyAnimationConfig = defaultBodyAnimationConfig,
+  delta: number = 1 / 60
 ): { pose: BodyPose; state: BodyAnimationState } {
   const nextState: BodyAnimationState = {
     lastAmplitude: amplitude,
@@ -130,18 +135,19 @@ export function computeBodyPose(
     inBlinkUntil: state.inBlinkUntil,
   };
 
-  // Smooth amplitude for reactive layer.
+  // Smooth amplitude for reactive layer, frame-rate independent.
+  const smoothingRate = Math.min(1, delta * 60 * config.reactive.smoothing);
   const smoothAmp = lerp(
     state.lastSmoothedAmplitude,
     amplitude,
-    config.reactive.smoothing
+    smoothingRate
   );
   nextState.lastSmoothedAmplitude = smoothAmp;
 
   // --- Idle ---
   const breath = Math.sin(time * config.idle.breathSpeed * Math.PI * 2);
   const chestPitch = breath * config.idle.breathAmount;
-  const shoulderY = breath * config.safety.maxShoulderY;
+  const shoulderRoll = breath * config.safety.maxShoulderRoll;
 
   // Phase offset ensures visible idle motion at t=0 (sin(0) would be zero).
   const headPitch =
@@ -157,16 +163,20 @@ export function computeBodyPose(
   const brow = smoothAmp * config.reactive.browAmount;
 
   // --- Expressive: emphasis spike detection ---
-  const delta = amplitude - state.lastAmplitude;
+  const amplitudeDelta = amplitude - state.lastAmplitude;
   let emphasis = state.emphasisValue * Math.exp(-(time - state.emphasisTime) * config.expressive.emphasisDecay);
-  if (delta > config.expressive.emphasisThreshold) {
+  if (amplitudeDelta > config.expressive.emphasisThreshold) {
     emphasis = 1;
     nextState.emphasisTime = time;
   }
   nextState.emphasisValue = emphasis;
 
   // Sentence-start boost: amplitude rising from near zero.
-  const sentenceStart = state.lastAmplitude < 0.05 && amplitude > 0.1 ? config.expressive.sentenceStartBoost : 0;
+  const sentenceStart =
+    state.lastAmplitude < config.expressive.sentenceStartLowThreshold &&
+    amplitude > config.expressive.sentenceStartHighThreshold
+      ? config.expressive.sentenceStartBoost
+      : 0;
 
   const emphasisTilt = emphasis * config.expressive.emphasisTilt;
 
@@ -206,13 +216,21 @@ export function computeBodyPose(
   const leftShoulder: Rotation3D = {
     x: 0,
     y: 0,
-    z: clamp(shoulderY, -config.safety.maxShoulderY, config.safety.maxShoulderY),
+    z: clamp(
+      shoulderRoll,
+      -config.safety.maxShoulderRoll,
+      config.safety.maxShoulderRoll
+    ),
   };
 
   const rightShoulder: Rotation3D = {
     x: 0,
     y: 0,
-    z: clamp(-shoulderY, -config.safety.maxShoulderY, config.safety.maxShoulderY),
+    z: clamp(
+      -shoulderRoll,
+      -config.safety.maxShoulderRoll,
+      config.safety.maxShoulderRoll
+    ),
   };
 
   const pose: BodyPose = {

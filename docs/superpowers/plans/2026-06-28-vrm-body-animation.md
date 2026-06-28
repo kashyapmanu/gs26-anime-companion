@@ -15,7 +15,7 @@
 | File | Responsibility |
 |------|----------------|
 | `web/src/companion/VoiceController.ts` | Expose `getCurrentAmplitude()` so the render loop can read live speech volume. Existing playback/STT logic unchanged. |
-| `web/src/companion/bodyAnimation.ts` | Pure function `computeBodyPose(time, amplitude, state, config)` returns a deterministic `BodyPose` snapshot. |
+| `web/src/companion/bodyAnimation.ts` | Pure function `computeBodyPose(time, amplitude, state, config, delta?)` returns a deterministic `BodyPose` snapshot. |
 | `web/src/companion/VRMHumanoidDriver.ts` | Applies a `BodyPose` to a loaded `VRM`'s normalized humanoid bones and expression manager. |
 | `web/src/companion/VRMStage.tsx` | Initializes the body layer, reads amplitude each frame, computes/apply body pose, keeps lip-sync. |
 | `web/test/bodyAnimation.test.ts` | Unit tests for idle, reactive, expressive, and clamp behavior. |
@@ -274,6 +274,7 @@ export interface BodyPose {
 
 export interface BodyAnimationState {
   lastAmplitude: number;
+  lastSmoothedAmplitude: number;
   emphasisTime: number;
   emphasisValue: number;
   nextBlinkTime: number;
@@ -375,7 +376,8 @@ export function computeBodyPose(
   time: number,
   amplitude: number,
   state: BodyAnimationState,
-  config: BodyAnimationConfig = defaultBodyAnimationConfig
+  config: BodyAnimationConfig = defaultBodyAnimationConfig,
+  delta: number = 1 / 60
 ): { pose: BodyPose; state: BodyAnimationState } {
   const nextState: BodyAnimationState = {
     lastAmplitude: amplitude,
