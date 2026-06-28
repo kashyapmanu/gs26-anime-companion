@@ -12,11 +12,12 @@ describe("VoiceController amplitude", () => {
     expect(computeRms(data)).toBe(0);
   });
 
+  it("computeRms returns 0 for an empty array", () => {
+    expect(computeRms(new Uint8Array(0))).toBe(0);
+  });
+
   it("computeRms returns a positive value for non-silent data", () => {
-    const data = new Uint8Array(128);
-    for (let i = 0; i < data.length; i++) {
-      data[i] = 128 + Math.round(50 * Math.sin(i * 0.5));
-    }
+    const data = new Uint8Array(128).fill(200);
     expect(computeRms(data)).toBeGreaterThan(0);
   });
 });
