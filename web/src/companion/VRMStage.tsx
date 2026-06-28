@@ -22,6 +22,7 @@ export const VRMStage = forwardRef<
   { modelUrl: string; enableBodyAnimation?: boolean }
 >(function VRMStage({ modelUrl, enableBodyAnimation = true }, _ref) {
   const mountRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const vrmRef = useRef<VRM | null>(null);
   const voiceRef = useRef<VoiceController>(new VoiceController());
   const targetViseme = useRef<VisemeWeights>(amplitudeToViseme(0));
@@ -38,6 +39,7 @@ export const VRMStage = forwardRef<
 
   useEffect(() => {
     const mount = mountRef.current!;
+    const canvas = canvasRef.current!;
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(30, mount.clientWidth / mount.clientHeight, 0.1, 20);
     camera.position.set(0, 1.3, 2.2);
@@ -45,10 +47,21 @@ export const VRMStage = forwardRef<
     renderer.setSize(mount.clientWidth, mount.clientHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
     mount.appendChild(renderer.domElement);
-    const light = new THREE.DirectionalLight(0xffffff, 1);
-    light.position.set(1, 1.5, 1);
-    scene.add(light);
-    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+    
+    // Cyberpunk ambient and spotlighting
+    const dirLight = new THREE.DirectionalLight(0x00f0ff, 1.2);
+    dirLight.position.set(1, 2, 1.5);
+    scene.add(dirLight);
+
+    const rimLight = new THREE.DirectionalLight(0xff007f, 1.0);
+    rimLight.position.set(-1.5, 1, -1);
+    scene.add(rimLight);
+
+    scene.add(new THREE.AmbientLight(0x1a1a2e, 0.8));
+
+    // Setup visualizer canvas dimensions
+    canvas.width = canvas.clientWidth * window.devicePixelRatio;
+    canvas.height = canvas.clientHeight * window.devicePixelRatio;
 
     // Body animation state is local to this effect/mount.
     const bodyState = initialBodyAnimationState();
@@ -70,9 +83,9 @@ export const VRMStage = forwardRef<
         const size = box.getSize(new THREE.Vector3());
         const maxDim = Math.max(size.x, size.y, size.z);
         const fovRad = camera.fov * (Math.PI / 180);
-        const distance = (maxDim / (2 * Math.tan(fovRad / 2))) * 1.4;
-        camera.position.set(center.x, center.y + size.y * 0.15, center.z + distance);
-        camera.lookAt(center);
+        const distance = (maxDim / (2 * Math.tan(fovRad / 2))) * 1.45;
+        camera.position.set(center.x, center.y + size.y * 0.18, center.z + distance);
+        camera.lookAt(new THREE.Vector3(center.x, center.y + size.y * 0.1, center.z));
       },
       undefined,
       (err) => { console.error("VRM load failed:", err); },
@@ -85,6 +98,24 @@ export const VRMStage = forwardRef<
 
     let raf = 0;
     const render = (time: number) => {
+      // Dynamic resize check to handle flexbox rendering delay
+      const currentWidth = mount.clientWidth;
+      const currentHeight = mount.clientHeight;
+      const canvasWidth = parseInt(renderer.domElement.style.width, 10) || 0;
+      const canvasHeight = parseInt(renderer.domElement.style.height, 10) || 0;
+      
+      if (currentWidth > 0 && currentHeight > 0 && (currentWidth !== canvasWidth || currentHeight !== canvasHeight)) {
+        renderer.setSize(currentWidth, currentHeight);
+        camera.aspect = currentWidth / currentHeight;
+        camera.updateProjectionMatrix();
+        
+        const vCanvas = canvasRef.current;
+        if (vCanvas) {
+          vCanvas.width = vCanvas.clientWidth * window.devicePixelRatio;
+          vCanvas.height = vCanvas.clientHeight * window.devicePixelRatio;
+        }
+      }
+
       const deltaSeconds = lastRafTime === undefined ? 1 / 60 : (time - lastRafTime) / 1000;
       lastRafTime = time;
       const delta = Math.min(1, deltaSeconds);
@@ -118,6 +149,43 @@ export const VRMStage = forwardRef<
 
       if (vrmRef.current) vrmRef.current.update(delta);
       renderer.render(scene, camera);
+
+      // Render custom audio visualizer on canvas
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const amp = voiceRef.current.getCurrentAmplitude();
+        const numBars = 40;
+        const barWidth = canvas.width / numBars;
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = "#00f0ff";
+
+        for (let i = 0; i < numBars; i++) {
+          const x = i * barWidth;
+          const sineFactor = Math.sin(time * 0.008 + i * 0.2);
+          
+          // Amplified reactive height when speaking, soft pulse when silent
+          const height = amp > 0.01 
+            ? (amp * canvas.height * 2.2 * (0.5 + 0.5 * sineFactor))
+            : (6 + 4 * Math.sin(time * 0.004 + i * 0.3));
+
+          const barH = Math.min(canvas.height - 8, height);
+          const y = (canvas.height - barH) / 2;
+
+          // Electric neon gradient
+          const grad = ctx.createLinearGradient(0, y, 0, y + barH);
+          grad.addColorStop(0, "#00f0ff");
+          grad.addColorStop(0.5, "#ff007f");
+          grad.addColorStop(1, "#00f0ff");
+
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.roundRect(x + 3, y, barWidth - 6, barH, 3);
+          ctx.fill();
+        }
+        ctx.shadowBlur = 0;
+      }
+
       raf = requestAnimationFrame(render);
     };
     raf = requestAnimationFrame(render);
@@ -126,6 +194,9 @@ export const VRMStage = forwardRef<
       renderer.setSize(mount.clientWidth, mount.clientHeight);
       camera.aspect = mount.clientWidth / mount.clientHeight;
       camera.updateProjectionMatrix();
+
+      canvas.width = canvas.clientWidth * window.devicePixelRatio;
+      canvas.height = canvas.clientHeight * window.devicePixelRatio;
     };
     window.addEventListener("resize", onResize);
 
@@ -137,5 +208,12 @@ export const VRMStage = forwardRef<
     };
   }, [modelUrl]);
 
-  return <div ref={mountRef} style={{ width: "100%", height: "100%" }} />;
+  return (
+    <div className="vrm-stage-container">
+      <div ref={mountRef} className="vrm-mount" />
+      <div className="vrm-hologram-grid" />
+      <div className="vrm-scanline-overlay" />
+      <canvas ref={canvasRef} className="vrm-visualizer-canvas" />
+    </div>
+  );
 });

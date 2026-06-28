@@ -6,12 +6,12 @@ export interface CatalogShow {
 }
 
 export const catalog: CatalogShow[] = [
-  { id: "frieren", title: "Frieren: Beyond Journey's End", blurb: "An elf mage reflects on time and loss.", img: "linear-gradient(135deg,#3b82f6,#1e3a8a)" },
-  { id: "jjk", title: "Jujutsu Kaisen", blurb: "Sorcerers battle curses in Shibuya.", img: "linear-gradient(135deg,#ef4444,#7f1d1d)" },
-  { id: "ds", title: "Demon Slayer", blurb: "A boy hunts demons to cure his sister.", img: "linear-gradient(135deg,#10b981,#064e3b)" },
-  { id: "csm", title: "Chainsaw Man", blurb: "A boy fused with a chainsaw devil.", img: "linear-gradient(135deg,#f59e0b,#7c2d12)" },
-  { id: "spy", title: "Spy x Family", blurb: "A spy builds a fake family for a mission.", img: "linear-gradient(135deg,#8b5cf6,#4c1d95)" },
-  { id: "vinland", title: "Vinland Saga", blurb: "A young Viking seeks revenge and meaning.", img: "linear-gradient(135deg,#64748b,#1e293b)" },
+  { id: "frieren", title: "Frieren: Beyond Journey's End", blurb: "An elf mage reflects on time and loss.", img: "/posters/frieren.jpg" },
+  { id: "jjk", title: "Jujutsu Kaisen", blurb: "Sorcerers battle curses in Shibuya.", img: "/posters/jjk.jpg" },
+  { id: "ds", title: "Demon Slayer", blurb: "A boy hunts demons to cure his sister.", img: "/posters/ds.jpg" },
+  { id: "csm", title: "Chainsaw Man", blurb: "A boy fused with a chainsaw devil.", img: "/posters/csm.jpg" },
+  { id: "spy", title: "Spy x Family", blurb: "A spy builds a fake family for a mission.", img: "/posters/spy.jpg" },
+  { id: "vinland", title: "Vinland Saga", blurb: "A young Viking seeks revenge and meaning.", img: "/posters/vinland.jpg" },
 ];
 
 export function getShow(id: string): CatalogShow | undefined {
