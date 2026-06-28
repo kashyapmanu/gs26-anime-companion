@@ -30,6 +30,10 @@ export const VRMStage = forwardRef<
   const stopRef = useRef<VRMStageHandle["stopSpeaking"]>(() => {});
   const bodyStateRef = useRef<BodyAnimationState>(initialBodyAnimationState());
   const bodyTimeRef = useRef<number>(0);
+  const enableBodyAnimationRef = useRef<boolean>(enableBodyAnimation);
+  useEffect(() => {
+    enableBodyAnimationRef.current = enableBodyAnimation;
+  }, [enableBodyAnimation]);
 
   useImperativeHandle(_ref as any, () => ({
     load: async () => {},
@@ -66,7 +70,7 @@ export const VRMStage = forwardRef<
         const size = box.getSize(new THREE.Vector3());
         const maxDim = Math.max(size.x, size.y, size.z);
         const fovRad = camera.fov * (Math.PI / 180);
-        const distance = (maxDim / (2 * Math.tan(fovRad / 2))) * 1.05;
+        const distance = (maxDim / (2 * Math.tan(fovRad / 2))) * 1.4;
         camera.position.set(center.x, center.y + size.y * 0.15, center.z + distance);
         camera.lookAt(center);
       },
@@ -97,7 +101,7 @@ export const VRMStage = forwardRef<
       }
 
       // Body animation (new)
-      if (enableBodyAnimation && vrmRef.current) {
+      if (enableBodyAnimationRef.current && vrmRef.current) {
         const amplitude = voiceRef.current.getCurrentAmplitude();
         const { pose, state } = computeBodyPose(
           bodyTimeRef.current,
