@@ -15,6 +15,10 @@ function makeMockVRM(boneNames: string[], expressionNames: string[] = []) {
   const setValue = vi.fn((name: string, value: number) => {
     expressions[name] = value;
   });
+  const expressionMap: Record<string, unknown> = {};
+  for (const name of expressionNames) {
+    expressionMap[name] = {};
+  }
   return {
     humanoid: {
       getNormalizedBoneNode: vi.fn((name: string) => bones[name] ?? null),
@@ -24,6 +28,10 @@ function makeMockVRM(boneNames: string[], expressionNames: string[] = []) {
       getExpressionTrackName: vi.fn((name: string) =>
         expressionNames.includes(name) ? `${name}.weight` : null
       ),
+      getExpression: vi.fn((name: string) =>
+        expressionNames.includes(name) ? ({} as any) : null
+      ),
+      expressionMap,
     },
     expressions,
     bones,
@@ -59,6 +67,22 @@ describe("applyBodyPose", () => {
     expect(vrm.expressions["brow"]).toBe(0.5);
   });
 
+  it("prefers upperChest over chest when both exist", () => {
+    const vrm = makeMockVRM(["upperChest", "chest"], []);
+    const pose: BodyPose = {
+      head: { x: 0, y: 0, z: 0 },
+      neck: { x: 0, y: 0, z: 0 },
+      chest: { x: 0.02, y: 0, z: 0 },
+      leftShoulder: { x: 0, y: 0, z: 0 },
+      rightShoulder: { x: 0, y: 0, z: 0 },
+      blink: 0,
+      brow: 0,
+    };
+    applyBodyPose(vrm, pose);
+    expect(vrm.bones.upperChest.rotation.set).toHaveBeenCalledWith(0.02, 0, 0);
+    expect(vrm.bones.chest.rotation.set).not.toHaveBeenCalled();
+  });
+
   it("falls back to chest when upperChest is missing", () => {
     const vrm = makeMockVRM(["chest"], []);
     const pose: BodyPose = {
@@ -92,22 +116,6 @@ describe("applyBodyPose", () => {
     expect(vrm.expressions["blinkRight"]).toBe(0.75);
   });
 
-  it("drives a single available blink side", () => {
-    const vrm = makeMockVRM([], ["blinkLeft"]);
-    const pose: BodyPose = {
-      head: { x: 0, y: 0, z: 0 },
-      neck: { x: 0, y: 0, z: 0 },
-      chest: { x: 0, y: 0, z: 0 },
-      leftShoulder: { x: 0, y: 0, z: 0 },
-      rightShoulder: { x: 0, y: 0, z: 0 },
-      blink: 0.5,
-      brow: 0,
-    };
-    applyBodyPose(vrm, pose);
-    expect(vrm.expressions["blinkLeft"]).toBe(0.5);
-    expect(vrm.expressions["blinkRight"]).toBeUndefined();
-  });
-
   it("prefers unified blink over split blink expressions", () => {
     const vrm = makeMockVRM([], ["blink", "blinkLeft", "blinkRight"]);
     const pose: BodyPose = {
@@ -122,6 +130,22 @@ describe("applyBodyPose", () => {
     applyBodyPose(vrm, pose);
     expect(vrm.expressions["blink"]).toBe(0.6);
     expect(vrm.expressions["blinkLeft"]).toBeUndefined();
+    expect(vrm.expressions["blinkRight"]).toBeUndefined();
+  });
+
+  it("drives a single available blink side", () => {
+    const vrm = makeMockVRM([], ["blinkLeft"]);
+    const pose: BodyPose = {
+      head: { x: 0, y: 0, z: 0 },
+      neck: { x: 0, y: 0, z: 0 },
+      chest: { x: 0, y: 0, z: 0 },
+      leftShoulder: { x: 0, y: 0, z: 0 },
+      rightShoulder: { x: 0, y: 0, z: 0 },
+      blink: 0.5,
+      brow: 0,
+    };
+    applyBodyPose(vrm, pose);
+    expect(vrm.expressions["blinkLeft"]).toBe(0.5);
     expect(vrm.expressions["blinkRight"]).toBeUndefined();
   });
 
@@ -155,18 +179,19 @@ describe("applyBodyPose", () => {
     expect(vrm.expressions["brow"]).toBe(0);
   });
 
-  it("clamps negative brow values to 0", () => {
-    const vrm = makeMockVRM([], ["brow"]);
+  it("clamps expression weights to [0, 1]", () => {
+    const vrm = makeMockVRM([], ["blink", "brow"]);
     const pose: BodyPose = {
       head: { x: 0, y: 0, z: 0 },
       neck: { x: 0, y: 0, z: 0 },
       chest: { x: 0, y: 0, z: 0 },
       leftShoulder: { x: 0, y: 0, z: 0 },
       rightShoulder: { x: 0, y: 0, z: 0 },
-      blink: 0,
+      blink: 2,
       brow: -0.5,
     };
     applyBodyPose(vrm, pose);
+    expect(vrm.expressions["blink"]).toBe(1);
     expect(vrm.expressions["brow"]).toBe(0);
   });
 
@@ -200,11 +225,11 @@ describe("applyBodyPose", () => {
     expect(() => applyBodyPose(vrm, pose)).not.toThrow();
   });
 
-  it("does not throw when expressionManager is missing", () => {
+  it("still rotates bones when expressionManager is missing", () => {
     const vrm = makeMockVRM(["head"], []) as unknown as Record<string, unknown>;
     delete vrm.expressionManager;
     const pose: BodyPose = {
-      head: { x: 0, y: 0, z: 0 },
+      head: { x: 0.1, y: 0.2, z: 0.3 },
       neck: { x: 0, y: 0, z: 0 },
       chest: { x: 0, y: 0, z: 0 },
       leftShoulder: { x: 0, y: 0, z: 0 },
@@ -213,5 +238,8 @@ describe("applyBodyPose", () => {
       brow: 0.5,
     };
     expect(() => applyBodyPose(vrm as unknown as VRM, pose)).not.toThrow();
+    expect(
+      (vrm as unknown as { bones: Record<string, { rotation: { set: ReturnType<typeof vi.fn> } }> }).bones.head.rotation.set
+    ).toHaveBeenCalledWith(0.1, 0.2, 0.3);
   });
 });
