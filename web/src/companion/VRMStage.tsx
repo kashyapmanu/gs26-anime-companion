@@ -28,8 +28,6 @@ export const VRMStage = forwardRef<
   const targetViseme = useRef<VisemeWeights>(amplitudeToViseme(0));
   const speakRef = useRef<VRMStageHandle["speak"]>(() => Promise.resolve());
   const stopRef = useRef<VRMStageHandle["stopSpeaking"]>(() => {});
-  const bodyStateRef = useRef<BodyAnimationState>(initialBodyAnimationState());
-  const bodyTimeRef = useRef<number>(0);
   const enableBodyAnimationRef = useRef<boolean>(enableBodyAnimation);
   useEffect(() => {
     enableBodyAnimationRef.current = enableBodyAnimation;
@@ -54,6 +52,11 @@ export const VRMStage = forwardRef<
     light.position.set(1, 1.5, 1);
     scene.add(light);
     scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+
+    // Body animation state is local to this effect/mount.
+    const bodyState = initialBodyAnimationState();
+    let bodyTime = 0;
+    let lastRafTime: number | undefined;
 
     const loader = new GLTFLoader();
     loader.register((parser) => new VRMLoaderPlugin(parser));
@@ -86,8 +89,10 @@ export const VRMStage = forwardRef<
     let raf = 0;
     const render = (time: number) => {
       raf = requestAnimationFrame(render);
-      const delta = Math.min(1, 1 / 60);
-      bodyTimeRef.current += delta;
+      const deltaSeconds = lastRafTime === undefined ? 1 / 60 : (time - lastRafTime) / 1000;
+      lastRafTime = time;
+      const delta = Math.min(1, deltaSeconds);
+      bodyTime += delta;
 
       // Lip-sync (existing)
       const v = targetViseme.current;
@@ -104,20 +109,21 @@ export const VRMStage = forwardRef<
       if (enableBodyAnimationRef.current && vrmRef.current) {
         const amplitude = voiceRef.current.getCurrentAmplitude();
         const { pose, state } = computeBodyPose(
-          bodyTimeRef.current,
+          bodyTime,
           amplitude,
-          bodyStateRef.current,
+          bodyState,
           defaultBodyAnimationConfig,
           delta
         );
-        bodyStateRef.current = state;
+        // Update the local state object properties without replacing the reference.
+        Object.assign(bodyState, state);
         applyBodyPose(vrmRef.current, pose);
       }
 
       if (vrmRef.current) vrmRef.current.update(delta);
       renderer.render(scene, camera);
     };
-    render(0);
+    raf = requestAnimationFrame(render);
 
     const onResize = () => {
       renderer.setSize(mount.clientWidth, mount.clientHeight);
