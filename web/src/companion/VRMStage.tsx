@@ -4,6 +4,13 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { VRMLoaderPlugin, type VRM } from "@pixiv/three-vrm";
 import { VoiceController } from "./VoiceController";
 import { amplitudeToViseme, type VisemeWeights } from "./lipSync";
+import {
+  computeBodyPose,
+  initialBodyAnimationState,
+  defaultBodyAnimationConfig,
+  type BodyAnimationState,
+} from "./bodyAnimation";
+import { applyBodyPose } from "./VRMHumanoidDriver";
 
 export interface VRMStageHandle {
   load(url: string): Promise<void>;
@@ -11,15 +18,18 @@ export interface VRMStageHandle {
   stopSpeaking(): void;
 }
 
-export const VRMStage = forwardRef<VRMStageHandle, { modelUrl: string }>(function VRMStage(
-  { modelUrl }, _ref
-) {
+export const VRMStage = forwardRef<
+  VRMStageHandle,
+  { modelUrl: string; enableBodyAnimation?: boolean }
+>(function VRMStage({ modelUrl, enableBodyAnimation = true }, _ref) {
   const mountRef = useRef<HTMLDivElement>(null);
   const vrmRef = useRef<VRM | null>(null);
   const voiceRef = useRef<VoiceController>(new VoiceController());
   const targetViseme = useRef<VisemeWeights>(amplitudeToViseme(0));
   const speakRef = useRef<VRMStageHandle["speak"]>(() => Promise.resolve());
   const stopRef = useRef<VRMStageHandle["stopSpeaking"]>(() => {});
+  const bodyStateRef = useRef<BodyAnimationState>(initialBodyAnimationState());
+  const bodyTimeRef = useRef<number>(0);
 
   useImperativeHandle(_ref as any, () => ({
     load: async () => {},
@@ -56,7 +66,7 @@ export const VRMStage = forwardRef<VRMStageHandle, { modelUrl: string }>(functio
         const size = box.getSize(new THREE.Vector3());
         const maxDim = Math.max(size.x, size.y, size.z);
         const fovRad = camera.fov * (Math.PI / 180);
-        const distance = (maxDim / (2 * Math.tan(fovRad / 2))) * 1.4;
+        const distance = (maxDim / (2 * Math.tan(fovRad / 2))) * 1.05;
         camera.position.set(center.x, center.y + size.y * 0.15, center.z + distance);
         camera.lookAt(center);
       },
@@ -70,8 +80,12 @@ export const VRMStage = forwardRef<VRMStageHandle, { modelUrl: string }>(functio
     stopRef.current = () => voiceRef.current.stop();
 
     let raf = 0;
-    const render = () => {
+    const render = (time: number) => {
       raf = requestAnimationFrame(render);
+      const delta = Math.min(1, 1 / 60);
+      bodyTimeRef.current += delta;
+
+      // Lip-sync (existing)
       const v = targetViseme.current;
       const expr = vrmRef.current?.expressionManager;
       if (expr) {
@@ -81,10 +95,25 @@ export const VRMStage = forwardRef<VRMStageHandle, { modelUrl: string }>(functio
         expr.setValue("ee", v.ee);
         expr.setValue("oh", v.oh);
       }
-      if (vrmRef.current) vrmRef.current.update(Math.min(1, 1 / 60));
+
+      // Body animation (new)
+      if (enableBodyAnimation && vrmRef.current) {
+        const amplitude = voiceRef.current.getCurrentAmplitude();
+        const { pose, state } = computeBodyPose(
+          bodyTimeRef.current,
+          amplitude,
+          bodyStateRef.current,
+          defaultBodyAnimationConfig,
+          delta
+        );
+        bodyStateRef.current = state;
+        applyBodyPose(vrmRef.current, pose);
+      }
+
+      if (vrmRef.current) vrmRef.current.update(delta);
       renderer.render(scene, camera);
     };
-    render();
+    render(0);
 
     const onResize = () => {
       renderer.setSize(mount.clientWidth, mount.clientHeight);
