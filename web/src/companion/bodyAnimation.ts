@@ -16,6 +16,7 @@ export interface BodyPose {
 
 export interface BodyAnimationState {
   lastAmplitude: number;
+  lastSmoothedAmplitude: number;
   emphasisTime: number;
   emphasisValue: number;
   nextBlinkTime: number;
@@ -99,13 +100,14 @@ function lerp(a: number, b: number, t: number): number {
 }
 
 /** Deterministic pseudo-random float in [0, 1) based on an integer seed. */
-function fractSin(seed: number): number {
-  return Math.abs(Math.sin(seed * 12.9898 + 78.233) % 1);
+function fract(x: number): number {
+  return x - Math.floor(x);
 }
 
 export function initialBodyAnimationState(): BodyAnimationState {
   return {
     lastAmplitude: 0,
+    lastSmoothedAmplitude: 0,
     emphasisTime: -Infinity,
     emphasisValue: 0,
     nextBlinkTime: 1,
@@ -121,6 +123,7 @@ export function computeBodyPose(
 ): { pose: BodyPose; state: BodyAnimationState } {
   const nextState: BodyAnimationState = {
     lastAmplitude: amplitude,
+    lastSmoothedAmplitude: state.lastSmoothedAmplitude,
     emphasisTime: state.emphasisTime,
     emphasisValue: state.emphasisValue,
     nextBlinkTime: state.nextBlinkTime,
@@ -128,13 +131,19 @@ export function computeBodyPose(
   };
 
   // Smooth amplitude for reactive layer.
-  const smoothAmp = lerp(state.lastAmplitude, amplitude, config.reactive.smoothing);
+  const smoothAmp = lerp(
+    state.lastSmoothedAmplitude,
+    amplitude,
+    config.reactive.smoothing
+  );
+  nextState.lastSmoothedAmplitude = smoothAmp;
 
   // --- Idle ---
   const breath = Math.sin(time * config.idle.breathSpeed * Math.PI * 2);
   const chestPitch = breath * config.idle.breathAmount;
   const shoulderY = breath * config.safety.maxShoulderY;
 
+  // Phase offset ensures visible idle motion at t=0 (sin(0) would be zero).
   const headPitch =
     Math.sin(time * config.idle.headSwaySpeedX * Math.PI * 2 + Math.PI / 4) *
     config.idle.headSwayAmount;
@@ -168,10 +177,11 @@ export function computeBodyPose(
     const seed = Math.floor(time * 1000);
     const interval =
       config.idle.blinkIntervalMin +
-      fractSin(seed) * (config.idle.blinkIntervalMax - config.idle.blinkIntervalMin);
+      fract(seed * 12.9898 + 78.233) *
+        (config.idle.blinkIntervalMax - config.idle.blinkIntervalMin);
     nextState.nextBlinkTime = time + interval;
   }
-  if (time < state.inBlinkUntil) {
+  if (time < nextState.inBlinkUntil) {
     blink = 1;
   }
 
