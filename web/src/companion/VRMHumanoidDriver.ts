@@ -10,6 +10,10 @@ const boneMap: Record<DrivenBoneName, VRMHumanBoneName> = {
   rightShoulder: "rightShoulder",
 };
 
+function clamp01(value: number): number {
+  return Math.max(0, Math.min(1, value));
+}
+
 function applyRotation(
   vrm: VRM,
   name: VRMHumanBoneName,
@@ -27,7 +31,7 @@ export function applyBodyPose(vrm: VRM, pose: BodyPose): void {
   // Neck
   applyRotation(vrm, boneMap.neck, pose.neck);
 
-  // Chest: prefer upperChest, fall back to chest
+  // Chest: VRM 1.0 uses upperChest, VRM 0.0 uses chest.
   const chestNode =
     vrm.humanoid.getNormalizedBoneNode("upperChest") ??
     vrm.humanoid.getNormalizedBoneNode("chest");
@@ -43,31 +47,26 @@ export function applyBodyPose(vrm: VRM, pose: BodyPose): void {
   const expr = vrm.expressionManager;
   if (!expr) return;
 
-  // Blink
-  const blinkName =
-    expr.getExpressionTrackName("blink") ??
-    (expr.getExpressionTrackName("blinkLeft") && expr.getExpressionTrackName("blinkRight")
-      ? "blinkLeft"
-      : null);
-  const blinkRightName = expr.getExpressionTrackName("blinkRight");
+  // Blink: prefer unified "blink"; fall back to split "blinkLeft"/"blinkRight".
+  const hasBlink = expr.getExpressionTrackName("blink");
+  const hasBlinkLeft = expr.getExpressionTrackName("blinkLeft");
+  const hasBlinkRight = expr.getExpressionTrackName("blinkRight");
+  const blinkWeight = pose.blink > 0 ? pose.blink : 0;
 
-  if (blinkName) {
-    if (pose.blink > 0) {
-      expr.setValue(blinkName, pose.blink);
-      if (blinkRightName) expr.setValue(blinkRightName, pose.blink);
-    } else {
-      expr.setValue(blinkName, 0);
-      if (blinkRightName) expr.setValue(blinkRightName, 0);
-    }
+  if (hasBlink) {
+    expr.setValue("blink", blinkWeight);
+  } else if (hasBlinkLeft && hasBlinkRight) {
+    expr.setValue("blinkLeft", blinkWeight);
+    expr.setValue("blinkRight", blinkWeight);
   }
 
-  // Brow
+  // Brow: prefer "brow", then "browInnerUp", "relaxed", "happy".
   const browName =
     expr.getExpressionTrackName("brow") ??
     expr.getExpressionTrackName("browInnerUp") ??
     expr.getExpressionTrackName("relaxed") ??
     expr.getExpressionTrackName("happy");
   if (browName) {
-    expr.setValue(browName, pose.brow);
+    expr.setValue(browName, clamp01(pose.brow));
   }
 }
