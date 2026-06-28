@@ -95,7 +95,7 @@ export class VoiceController {
     source.start();
     const data = new Uint8Array(analyser.frequencyBinCount);
     const tick = () => {
-      if (this.analyser !== analyser) return;
+      if (this.analyser !== analyser || this.currentSource !== source) return;
       analyser.getByteTimeDomainData(data);
       const rms = computeRms(data);
       this.currentAmplitude = rms;
@@ -108,6 +108,7 @@ export class VoiceController {
         cancelAnimationFrame(this.raf);
         this.raf = 0;
         this.currentAmplitude = 0;
+        this.analyser = null;
         onViseme(amplitudeToViseme(0));
         resolve();
       };
@@ -119,9 +120,10 @@ export class VoiceController {
     this.queue = [];
     cancelAnimationFrame(this.raf);
     this.raf = 0;
-    this.currentAmplitude = 0;
     try { this.currentSource?.stop(); } catch { /* already stopped */ }
     this.currentSource = null;
+    this.analyser = null;
+    this.currentAmplitude = 0;
   }
 
   stop(): void {
