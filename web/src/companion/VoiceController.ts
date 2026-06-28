@@ -17,6 +17,8 @@ export class VoiceController {
   private analyser: AnalyserNode | null = null;
   private raf = 0;
   private currentSource: AudioBufferSourceNode | null = null;
+  private queue: Array<{ audioBase64: string; mime: string; onViseme: (w: VisemeWeights) => void }> = [];
+  private playing = false;
 
   static isSTTSupported(): boolean {
     return typeof window !== "undefined" &&
@@ -43,23 +45,43 @@ export class VoiceController {
     this.recognition = null;
   }
 
-  /** Play a base64 audio string, driving onViseme each frame for lip-sync. */
-  async play(audioBase64: string, mime: string, onViseme: (w: VisemeWeights) => void): Promise<void> {
+  /** Queue an audio chunk; chunks play sequentially so sentences never overlap or get cut off. */
+  play(audioBase64: string, mime: string, onViseme: (w: VisemeWeights) => void): void {
+    this.queue.push({ audioBase64, mime, onViseme });
+    void this.pump();
+  }
+
+  private async pump(): Promise<void> {
+    if (this.playing) return;
+    const chunk = this.queue.shift();
+    if (!chunk) return;
+    this.playing = true;
+    try {
+      await this.playChunk(chunk.audioBase64, chunk.mime, chunk.onViseme);
+    } catch {
+      /* skip malformed chunk */
+    }
+    this.playing = false;
+    if (this.queue.length > 0) void this.pump();
+  }
+
+  private async playChunk(audioBase64: string, mime: string, onViseme: (w: VisemeWeights) => void): Promise<void> {
     const bytes = Uint8Array.from(atob(audioBase64), (c) => c.charCodeAt(0));
     this.audioCtx = this.audioCtx ?? new AudioContext();
     if (this.audioCtx.state === "suspended") await this.audioCtx.resume();
     const buffer = await this.audioCtx.decodeAudioData(bytes.buffer.slice(0));
     const source = this.audioCtx.createBufferSource();
     source.buffer = buffer;
-    this.analyser = this.audioCtx.createAnalyser();
-    this.analyser.fftSize = 256;
-    source.connect(this.analyser).connect(this.audioCtx.destination);
+    const analyser = this.audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    source.connect(analyser).connect(this.audioCtx.destination);
+    this.analyser = analyser;
     this.currentSource = source;
     source.start();
-    const data = new Uint8Array(this.analyser.frequencyBinCount);
+    const data = new Uint8Array(analyser.frequencyBinCount);
     const tick = () => {
-      if (!this.analyser) return;
-      this.analyser.getByteTimeDomainData(data);
+      if (this.analyser !== analyser) return;
+      analyser.getByteTimeDomainData(data);
       let sum = 0;
       for (let i = 0; i < data.length; i++) { const v = (data[i] - 128) / 128; sum += v * v; }
       const rms = Math.sqrt(sum / data.length);
@@ -68,14 +90,26 @@ export class VoiceController {
     };
     this.raf = requestAnimationFrame(tick);
     return new Promise((resolve) => {
-      source.onended = () => { cancelAnimationFrame(this.raf); onViseme(amplitudeToViseme(0)); resolve(); };
+      source.onended = () => {
+        cancelAnimationFrame(this.raf);
+        this.raf = 0;
+        onViseme(amplitudeToViseme(0));
+        resolve();
+      };
     });
   }
 
-  stop(): void {
+  /** Stop audio playback only; leaves speech recognition running. */
+  private stopPlayback(): void {
+    this.queue = [];
     cancelAnimationFrame(this.raf);
+    this.raf = 0;
     try { this.currentSource?.stop(); } catch { /* already stopped */ }
     this.currentSource = null;
+  }
+
+  stop(): void {
+    this.stopPlayback();
     this.stopListening();
   }
 }

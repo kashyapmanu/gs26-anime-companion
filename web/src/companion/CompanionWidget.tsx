@@ -16,9 +16,15 @@ export function CompanionWidget({ apiBase, modelUrl }: { apiBase: string; modelU
   const stageRef = useRef<VRMStageHandle | null>(null);
   const voiceRef = useRef<VoiceController>(new VoiceController());
   const sendHandleRef = useRef<{ abort: () => void } | null>(null);
+  const linesRef = useRef<HTMLDivElement>(null);
   const sttSupported = VoiceController.isSTTSupported();
 
   useEffect(() => { clientRef.current = new ConversationClient({ base: apiBase }); }, [apiBase]);
+
+  useEffect(() => {
+    const el = linesRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [lines]);
 
   async function handleOpen() {
     setOpen(true);
@@ -40,10 +46,29 @@ export function CompanionWidget({ apiBase, modelUrl }: { apiBase: string; modelU
     if (!c || !sid || !text.trim()) return;
     setLines((l) => [...l, { who: "me", text }, { who: "kira", text: "…" }]);
     sendHandleRef.current = c.send(sid, text, {
-      onSentence: (t) => setLines((l) => { const cp = [...l]; cp[cp.length - 1] = { who: "kira", text: t }; return cp; }),
+      onSentence: (t) => setLines((l) => {
+        const cp = [...l];
+        const last = cp[cp.length - 1];
+        if (last && last.who === "kira") {
+          const base = last.text === "…" ? "" : last.text;
+          cp[cp.length - 1] = { who: "kira", text: base ? `${base} ${t}` : t };
+        } else {
+          cp.push({ who: "kira", text: t });
+        }
+        return cp;
+      }),
       onAudio: (a) => stageRef.current?.speak(a.audioBase64, a.mime).catch(() => {}),
       onDone: () => { sendHandleRef.current = null; },
-      onError: (m) => setLines((l) => { const cp = [...l]; cp[cp.length - 1] = { who: "kira", text: `(glitch: ${m})` }; return cp; }),
+      onError: (m) => setLines((l) => {
+        const cp = [...l];
+        const last = cp[cp.length - 1];
+        if (last && last.who === "kira" && last.text === "…") {
+          cp[cp.length - 1] = { who: "kira", text: `(glitch: ${m})` };
+        } else {
+          cp.push({ who: "kira", text: `(glitch: ${m})` });
+        }
+        return cp;
+      }),
     });
   }
 
@@ -66,7 +91,9 @@ export function CompanionWidget({ apiBase, modelUrl }: { apiBase: string; modelU
         <VRMStage modelUrl={modelUrl} ref={stageRef as any} />
       </div>
       <div className="panel">
-        {lines.map((l, i) => <div className={`line ${l.who === "me" ? "me" : ""}`} key={i}>{l.who === "me" ? "You: " : ""}{l.text}</div>)}
+        <div className="lines" ref={linesRef}>
+          {lines.map((l, i) => <div className={`line ${l.who === "me" ? "me" : ""}`} key={i}>{l.who === "me" ? "You: " : ""}{l.text}</div>)}
+        </div>
         <div className="controls">
           {sttSupported ? (
             <button onClick={handleMic}>{listening ? "Listening…" : "Speak"}</button>
