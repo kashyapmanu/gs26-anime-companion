@@ -11,6 +11,15 @@ type RecognitionLike = {
   onend: (() => void) | null;
 };
 
+export function computeRms(data: Uint8Array): number {
+  let sum = 0;
+  for (let i = 0; i < data.length; i++) {
+    const v = (data[i] - 128) / 128;
+    sum += v * v;
+  }
+  return Math.sqrt(sum / data.length);
+}
+
 export class VoiceController {
   private recognition: RecognitionLike | null = null;
   private audioCtx: AudioContext | null = null;
@@ -87,9 +96,7 @@ export class VoiceController {
     const tick = () => {
       if (this.analyser !== analyser) return;
       analyser.getByteTimeDomainData(data);
-      let sum = 0;
-      for (let i = 0; i < data.length; i++) { const v = (data[i] - 128) / 128; sum += v * v; }
-      const rms = Math.sqrt(sum / data.length);
+      const rms = computeRms(data);
       this.currentAmplitude = rms;
       onViseme(amplitudeToViseme(rms));
       this.raf = requestAnimationFrame(tick);

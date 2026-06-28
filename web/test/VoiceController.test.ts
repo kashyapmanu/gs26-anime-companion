@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from "vitest";
-import { VoiceController } from "../src/companion/VoiceController";
+import { describe, it, expect } from "vitest";
+import { VoiceController, computeRms } from "../src/companion/VoiceController";
 
 describe("VoiceController amplitude", () => {
   it("returns 0 when no audio is playing", () => {
@@ -7,13 +7,16 @@ describe("VoiceController amplitude", () => {
     expect(vc.getCurrentAmplitude()).toBe(0);
   });
 
-  it("returns the last computed RMS while playing", async () => {
-    const vc = new VoiceController();
-    // We cannot easily drive the Web Audio pipeline in jsdom,
-    // so we assert the method exists and returns a number.
-    expect(typeof vc.getCurrentAmplitude).toBe("function");
-    const amp = vc.getCurrentAmplitude();
-    expect(typeof amp).toBe("number");
-    expect(amp).toBeGreaterThanOrEqual(0);
+  it("computeRms returns 0 for silent data", () => {
+    const data = new Uint8Array(128).fill(128);
+    expect(computeRms(data)).toBe(0);
+  });
+
+  it("computeRms returns a positive value for non-silent data", () => {
+    const data = new Uint8Array(128);
+    for (let i = 0; i < data.length; i++) {
+      data[i] = 128 + Math.round(50 * Math.sin(i * 0.5));
+    }
+    expect(computeRms(data)).toBeGreaterThan(0);
   });
 });
